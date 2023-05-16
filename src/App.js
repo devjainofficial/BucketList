@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AiOutlinePlus } from "react-icons/ai";
-import Bucket from "./bucket";
+import Bucket from "./Bucket";
+import {db} from "./firebase";
+import {query, collection, onSnapshot, updateDoc, doc, addDoc, deleteDoc} from "firebase/firestore";
+
+
 
 
 const style = {
@@ -14,24 +18,74 @@ const style = {
 }
 
 function App() {
-const [buckets, setBuckets ] = useState(['Learn React' , 'Grind Leetcode'])
+const [buckets, setBuckets ] = useState([]);
+const [input, setInput] = useState('');
+
+
+//Create Bucket
+const createBucket = async (e) => {
+  e.preventDefault(e)
+  if(input === ''){
+    alert('Please Enter a Valid Water')
+    return
+  }
+  await addDoc(collection(db, 'buckets'), {
+    text: input,
+    completed:false
+  })  
+  setInput('')
+};
+
+//Read Bucket from Firebase
+useEffect(()=>{
+  const q = query(collection(db,'buckets'))
+  const unsubscribe = onSnapshot(q, (querySnapshot)=>{
+    let bucketsArr = []
+    querySnapshot.forEach((doc) => {
+      bucketsArr.push({...doc.data(), id: doc.id})
+    });
+    setBuckets(bucketsArr)
+  })
+  return () => unsubscribe()
+},[])
+
+
+//Update Bucket in Firebase
+const toggleComplete = async (bucket) => {
+await updateDoc(doc(db, 'buckets', bucket.id),{
+  completed: !bucket.Completed
+})
+}
+
+
+//Delete Bucket
+const deleteBucket =async (id) => {
+  await deleteDoc(doc(db, 'buckets', id))
+}
 
 
   return (
   <div className={style.bg}>
       <div className={style.container}>
         <h3 className={style.heading}>BUCKET LIST</h3>
-        <form className={style.form}>
-          <input className={style.input} type="text" placeholder="Add Your Water" />
+        <form onSubmit={createBucket} className={style.form}>
+          <input value={input}
+          onChange={(e)=> setInput(e.target.value)} 
+          className={style.input} 
+          type="text" 
+          placeholder="Add Your buckets" 
+          />
           <button className={style.button}><AiOutlinePlus size={30} /></button>
         </form>
         <ul>
-          {buckets.map[(bucket, index)=>(
-            <Bucket key={index} Bucket={bucket}/>
-          )] 
+          {buckets.map((bucket, index)=>(
+            <Bucket key={index} bucket={bucket} toggleComplete={toggleComplete} deleteBucket = {deleteBucket}/>
+          ))
           }
         </ul>
-        <p className={style.count}>You have 2 buckets</p>
+
+        {buckets.length < 1 ? null : <p className={style.count}>{`You have ${buckets.length} buckets`}</p>
+}
       </div>
    </div>
   );
